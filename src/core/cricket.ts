@@ -15,6 +15,7 @@ export interface MatchState {
  hit:boolean;bounced:boolean;deliveryBounced:boolean;wide:boolean;deliveryRuns:number;running:number;runRequested:boolean;throwTime:number|null;
  trajectory:{x:number;y:number;z:number}[];lastShot:string;delivery:number;deliveryStriker:number;superOver:boolean;superRound:number;
  pitchType?:'green'|'dusty'|'flat';
+ deliveries?:{innings:number;ball:number;runs:number;total:number;wicket:boolean;wide:boolean;x:number;z:number;hit:boolean}[];
  deliverySwing?:number;deliverySeam?:number;shotFootwork?:number;
 }
 const clamp=(n:number,min:number,max:number)=>Math.min(max,Math.max(min,n));
@@ -62,6 +63,7 @@ export function applyInput(s:MatchState,userId:string,sequence:number,input:Game
 function addRuns(s:MatchState,n:number,boundary=0){s.runs+=n;s.deliveryRuns+=n;const batter=s.batters[s.batting][s.deliveryStriker];batter.runs+=n;if(boundary===4)batter.fours++;if(boundary===6)batter.sixes++;s.bowlers[1-s.batting][s.bowler].runs+=n;}
 function endBall(s:MatchState,label:string,wicket=false,wide=false){
  if(s.phase==='DEAD'||s.phase==='INNINGS_BREAK'||s.phase==='COMPLETE')return;
+ (s.deliveries??=[]).push({innings:s.innings,ball:s.legalBalls+(wide?0:1),runs:s.deliveryRuns+(wide?1:0),total:s.runs+(wide?1:0),wicket,wide,x:s.ball.x,z:s.ball.z,hit:s.hit});
  if(wide){s.runs++;const b=s.bowlers[1-s.batting][s.bowler];b.runs++;b.wides++;}else{s.legalBalls++;s.batters[s.batting][s.deliveryStriker].balls++;s.bowlers[1-s.batting][s.bowler].balls++;}
  if(wicket){if(label!=='Run out'&&s.striker!==s.deliveryStriker)[s.striker,s.nonStriker]=[s.nonStriker,s.striker];s.wickets++;s.batters[s.batting][s.striker].out=true;if(label!=='Run out')s.bowlers[1-s.batting][s.bowler].wickets++;if(s.wickets<10)s.striker=s.wickets+1;}
  if(!wide&&s.legalBalls%6===0)[s.striker,s.nonStriker]=[s.nonStriker,s.striker];
