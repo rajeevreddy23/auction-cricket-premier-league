@@ -1,0 +1,30 @@
+# Prepared configuration only: no service or paid resources are created by this file.
+# Deploy from a connected Git repository containing this source.
+# Current SQLite authority MUST run a single instance with a persistent disk.
+services:
+  - type: web
+    name: acpl-server
+    runtime: node
+    plan: starter
+    numInstances: 1
+    autoDeployTrigger: off
+    buildCommand: npm ci && npm run check && npm test && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 24.22.1
+      - key: NODE_ENV
+        value: production
+      - key: DB_PATH
+        value: /var/data/acpl.db
+      - key: MAX_MATCHES
+        value: 5
+      - key: DISCONNECT_GRACE_MS
+        value: 120000
+      - key: ALLOWED_ORIGIN
+        sync: false
+    disk:
+      name: acpl-data
+      mountPath: /var/data
+      sizeGB: 1

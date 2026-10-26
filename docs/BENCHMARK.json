@@ -1,0 +1,152 @@
+{
+  "date": "2026-10-26T08:21:52.488Z",
+  "kind": "headless deterministic engine-input benchmark; NOT production capacity certification",
+  "infrastructure": {
+    "runtime": "v24.22.1",
+    "cpu": "AMD EPYC 9V74 80-Core Processor",
+    "logicalCpus": 9,
+    "hostMemoryBytes": 10451439616
+  },
+  "tier": "A engine component only",
+  "sessions": 5,
+  "owners": 10,
+  "completed": 5,
+  "inputs": 145,
+  "ticks": 1217,
+  "wallMs": 9.90982799999999,
+  "simulationBatchMs": {
+    "p50": 0.002103000000005295,
+    "p95": 0.013440000000002783,
+    "p99": 0.05356099999998776
+  },
+  "processCpuMs": {
+    "user": 34.352,
+    "system": 1.653
+  },
+  "processMemory": {
+    "rss": 68153344,
+    "heapTotal": 17727488,
+    "heapUsed": 12880416,
+    "external": 10862676,
+    "arrayBuffers": 146635
+  },
+  "results": [
+    {
+      "id": "benchmark-0",
+      "winnerId": "A0",
+      "scores": [
+        {
+          "teamId": "A0",
+          "runs": 36,
+          "wickets": 0,
+          "balls": 6,
+          "quotaBalls": 6,
+          "superOver": false
+        },
+        {
+          "teamId": "B0",
+          "runs": 0,
+          "wickets": 0,
+          "balls": 6,
+          "quotaBalls": 6,
+          "superOver": false
+        }
+      ]
+    },
+    {
+      "id": "benchmark-1",
+      "winnerId": "A1",
+      "scores": [
+        {
+          "teamId": "A1",
+          "runs": 36,
+          "wickets": 0,
+          "balls": 6,
+          "quotaBalls": 6,
+          "superOver": false
+        },
+        {
+          "teamId": "B1",
+          "runs": 0,
+          "wickets": 0,
+          "balls": 6,
+          "quotaBalls": 6,
+          "superOver": false
+        }
+      ]
+    },
+    {
+      "id": "benchmark-2",
+      "winnerId": "A2",
+      "scores": [
+        {
+          "teamId": "A2",
+          "runs": 36,
+          "wickets": 0,
+          "balls": 6,
+          "quotaBalls": 6,
+          "superOver": false
+        },
+        {
+          "teamId": "B2",
+          "runs": 0,
+          "wickets": 0,
+          "balls": 6,
+          "quotaBalls": 6,
+          "superOver": false
+        }
+      ]
+    },
+    {
+      "id": "benchmark-3",
+      "winnerId": "A3",
+      "scores": [
+        {
+          "teamId": "A3",
+          "runs": 36,
+          "wickets": 0,
+          "balls": 6,
+          "quotaBalls": 6,
+          "superOver": false
+        },
+        {
+          "teamId": "B3",
+          "runs": 0,
+          "wickets": 0,
+          "balls": 6,
+          "quotaBalls": 6,
+          "superOver": false
+        }
+      ]
+    },
+    {
+      "id": "benchmark-4",
+      "winnerId": "A4",
+      "scores": [
+        {
+          "teamId": "A4",
+          "runs": 36,
+          "wickets": 0,
+          "balls": 6,
+          "quotaBalls": 6,
+          "superOver": false
+        },
+        {
+          "teamId": "B4",
+          "runs": 0,
+          "wickets": 0,
+          "balls": 6,
+          "quotaBalls": 6,
+          "superOver": false
+        }
+      ]
+    }
+  ],
+  "notRun": [
+    "50 or 500 concurrent network matches",
+    "render frame times/device matrix",
+    "WAN latency and packet loss",
+    "distributed crash recovery",
+    "cloud cost measurement"
+  ]
+}
