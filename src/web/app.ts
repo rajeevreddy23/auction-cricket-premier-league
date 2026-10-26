@@ -1,4 +1,5 @@
 import './style.css';
+import './premium.css';
 import {probeBackend,validateBackendOrigin} from './connection.ts';
 type GameMount = typeof import('./game.ts').mountGame;
 import type { GameInput, MatchState } from '../core/cricket.ts';
