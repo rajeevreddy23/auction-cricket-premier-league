@@ -1,0 +1,27 @@
+:root{--premium-ink:#071921;--premium-navy:#0b2029;--premium-green:#183f32;--premium-lime:#d9ff5b;--premium-gold:#e7c06a;--premium-ivory:#f8f8f2}
+body{background:radial-gradient(circle at 75% 0,#e8eedc 0,transparent 28%),#f3f4ec}
+.sidebar{background:linear-gradient(165deg,#071a24 0%,#0b222a 48%,#102d2d 100%);border-right:1px solid #ffffff12;box-shadow:18px 0 45px #06161b20}
+.brand{position:relative}.brand:after{content:'PREMIER';position:absolute;right:18px;top:17px;padding:3px 6px;border:1px solid #d9ff5b55;border-radius:20px;color:#d9ff5b;font-size:7px;letter-spacing:1.5px}
+.brand-mark{background:linear-gradient(145deg,#e7ff71,#b9e936);box-shadow:0 0 26px #d9ff5b40;transform:rotate(-4deg)}
+.nav button{border-radius:11px;margin:3px 10px;width:calc(100% - 20px);transition:transform .18s ease,background .18s ease,color .18s ease}
+.nav button:hover{transform:translateX(4px);background:#ffffff0c}.nav button.active{background:linear-gradient(105deg,#dfff68,#c8f34b);box-shadow:0 8px 24px #cdeb4728;color:#10271f}
+.season-card{background:linear-gradient(145deg,#173835,#0e282d);border:1px solid #d9ff5b24;box-shadow:inset 0 1px #ffffff10,0 16px 35px #0003}
+.main{background:linear-gradient(180deg,#fafaf6 0,#f1f3ea 100%)}
+.topbar{background:#fffdf9d9;backdrop-filter:blur(18px);border-bottom:1px solid #16332a12;box-shadow:0 8px 28px #17362c0a}
+.connection{padding:8px 11px;border-radius:99px;background:#eef3e9;border:1px solid #16362c10}.connection .dot.connected{box-shadow:0 0 0 5px #38b56a20}
+.account{border:1px solid #16362c12;border-radius:14px;padding:7px 11px;background:#fff;box-shadow:0 7px 20px #18372d0b}
+.avatar{background:linear-gradient(145deg,#dfff69,#b9e73a);box-shadow:0 5px 13px #b4da4160}
+.eyebrow,.tag{letter-spacing:2.2px}.hero{position:relative;isolation:isolate;overflow:hidden;border:1px solid #ffffff18;background:radial-gradient(circle at 83% 34%,#396c4f 0,transparent 25%),linear-gradient(115deg,#0b3028,#174934 58%,#102e29);box-shadow:0 24px 50px #12372b2e,inset 0 1px #ffffff1f;border-radius:20px}
+.hero:before{content:'';position:absolute;z-index:-1;width:440px;height:440px;right:-90px;top:-150px;border:1px solid #d9ff5b26;border-radius:50%;box-shadow:0 0 0 42px #d9ff5b08,0 0 0 84px #d9ff5b06}
+.hero h2{letter-spacing:-1px;text-shadow:0 4px 20px #00150b60}.hero-art{filter:drop-shadow(0 26px 22px #00150b80)}
+.btn,.button-row button,.hero button{border-radius:11px;transition:transform .18s ease,box-shadow .18s ease,filter .18s ease}.btn:hover,.button-row button:hover,.hero button:hover{transform:translateY(-2px);filter:brightness(1.03);box-shadow:0 12px 24px #173a2c22}.btn.dark{background:linear-gradient(115deg,#09232c,#153a3a)}
+.stat-card,.panel,.journey-card,.tournament-card,.card{border:1px solid #173a2b10!important;background:linear-gradient(145deg,#fff,#fbfcf7)!important;box-shadow:0 12px 36px #173a2b0b!important;border-radius:16px!important;transition:transform .2s ease,box-shadow .2s ease}.stat-card:hover,.tournament-card:hover,.card:hover{transform:translateY(-3px);box-shadow:0 20px 42px #173a2b16!important}
+.stat-card strong{font-variant-numeric:tabular-nums}.stat-icon{background:linear-gradient(145deg,#f0f7e4,#e5f0da);box-shadow:inset 0 1px #fff}
+.section-title h2,.content h1{letter-spacing:-.7px}.content h1{background:linear-gradient(100deg,#0a2028,#1c4f3b);background-clip:text;color:transparent}
+.pill,.status,.badge{border-radius:99px;box-shadow:inset 0 1px #fff7}.code{border:1px solid #183c2f18;background:#eff4e9;border-radius:8px;padding:4px 7px}
+table{border-collapse:separate;border-spacing:0 6px}tbody tr{background:#fff;box-shadow:0 5px 16px #173a2b08}tbody td:first-child{border-radius:9px 0 0 9px}tbody td:last-child{border-radius:0 9px 9px 0}
+.modal{backdrop-filter:blur(12px);background:#06171db8}.modal-card{border-radius:22px;border:1px solid #ffffff44;box-shadow:0 30px 90px #00151a75;background:linear-gradient(160deg,#fff,#f5f7ef)}
+.field input,.field select,.field textarea{border-radius:10px;border:1px solid #173a2a25;background:#fff;box-shadow:inset 0 1px 3px #173a2a08;transition:border .18s,box-shadow .18s}.field input:focus,.field select:focus,.field textarea:focus{outline:0;border-color:#8db52e;box-shadow:0 0 0 4px #cbea5430}
+.toast{border-radius:12px;box-shadow:0 16px 45px #001b2090;border:1px solid #ffffff20}
+@media(max-width:760px){.content{padding:20px 15px 80px}.hero{border-radius:16px;box-shadow:0 15px 35px #12372b26}.hero:before{width:280px;height:280px;right:-120px;top:-80px}.topbar{padding:10px 12px}.account{padding:5px 8px}.connection{display:none}.stat-card,.panel,.journey-card,.tournament-card,.card{border-radius:13px!important}.btn,.button-row button{min-height:46px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
