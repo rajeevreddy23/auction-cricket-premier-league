@@ -14,18 +14,19 @@ export interface MatchState {
  fielders:{x:number;z:number;homeX:number;homeZ:number}[];swing:{until:number;direction:number;power:number;loft:boolean}|null;
  hit:boolean;bounced:boolean;deliveryBounced:boolean;wide:boolean;deliveryRuns:number;running:number;runRequested:boolean;throwTime:number|null;
  trajectory:{x:number;y:number;z:number}[];lastShot:string;delivery:number;deliveryStriker:number;superOver:boolean;superRound:number;
+ pitchType?:'green'|'dusty'|'flat';
 }
 const clamp=(n:number,min:number,max:number)=>Math.min(max,Math.max(min,n));
 const ballAtStart=():Ball=>({x:0,y:2,z:-9,vx:0,vy:0,vz:0});
 function event(s:MatchState,text:string,type='info'){s.events.push({id:s.events.length? s.events[s.events.length-1].id+1:1,tick:s.tick,text,type});if(s.events.length>600)s.events.shift();}
 function assertNumber(n:unknown){if(typeof n!=='number'||!Number.isFinite(n))throw Error('Invalid numeric input');}
-export function createMatch(id:string,a:MatchTeam,b:MatchTeam,overs=2):MatchState {
+export function createMatch(id:string,a:MatchTeam,b:MatchTeam,overs=2,pitchType:'green'|'dusty'|'flat'='flat'):MatchState {
  if(a.id===b.id||a.ownerId===b.ownerId)throw Error('Two independent team owners are required');
  if(!Number.isInteger(overs)||overs<1||overs>20)throw Error('Overs must be 1 to 20');
  if(a.players.length!==11||b.players.length!==11)throw Error('Playing XI must contain eleven players');
  for(const t of [a,b])if(new Set(t.players.map(p=>p.id)).size!==11)throw Error('Duplicate XI player');
  const positions=[[-16,18],[17,19],[-28,1],[29,-2],[-14,-29],[16,-32],[-37,28],[36,29],[0,10.8]];
- const s:MatchState={id,teams:structuredClone([a,b]),batting:0,innings:1,phase:'READY',ball:ballAtStart(),runs:0,wickets:0,legalBalls:0,overs,target:null,winnerId:null,inningsScores:[],events:[],tick:0,time:0,phaseTime:0,sequence:{},striker:0,nonStriker:1,bowler:0,batters:[a,b].map(t=>t.players.map(p=>({playerId:p.id,runs:0,balls:0,fours:0,sixes:0,out:false}))),bowlers:[a,b].map(t=>t.players.map(p=>({playerId:p.id,balls:0,runs:0,wickets:0,wides:0}))),fielders:positions.map(([x,z])=>({x,z,homeX:x,homeZ:z})),swing:null,hit:false,bounced:false,deliveryBounced:false,wide:false,deliveryRuns:0,running:0,runRequested:false,throwTime:null,trajectory:[],lastShot:'Awaiting delivery',delivery:0,deliveryStriker:0,superOver:false,superRound:0};
+ const s:MatchState={id,teams:structuredClone([a,b]),batting:0,innings:1,phase:'READY',ball:ballAtStart(),runs:0,wickets:0,legalBalls:0,overs,target:null,winnerId:null,inningsScores:[],events:[],tick:0,time:0,phaseTime:0,sequence:{},striker:0,nonStriker:1,bowler:0,batters:[a,b].map(t=>t.players.map(p=>({playerId:p.id,runs:0,balls:0,fours:0,sixes:0,out:false}))),bowlers:[a,b].map(t=>t.players.map(p=>({playerId:p.id,balls:0,runs:0,wickets:0,wides:0}))),fielders:positions.map(([x,z])=>({x,z,homeX:x,homeZ:z})),swing:null,hit:false,bounced:false,deliveryBounced:false,wide:false,deliveryRuns:0,running:0,runRequested:false,throwTime:null,trajectory:[],lastShot:'Awaiting delivery',delivery:0,deliveryStriker:0,superOver:false,superRound:0,pitchType};
  selectBowler(s);event(s,`${a.name} bat first. ${overs} overs per side.`);return s;
 }
 function selectBowler(s:MatchState){const team=s.teams[1-s.batting];const eligible=team.players.map((p,i)=>({p,i})).filter(x=>/bowl|all/i.test(x.p.role));s.bowler=(eligible.length?eligible:team.players.map((p,i)=>({p,i})))[Math.floor(s.legalBalls/6)%Math.max(1,eligible.length)].i;}
@@ -85,7 +86,7 @@ export function stepMatch(s:MatchState,dt:number):void {
  if(s.phase==='COMPLETE')return;s.tick++;s.time+=dt;s.phaseTime+=dt;
  if(s.phase==='READY'||s.phase==='DEAD'||s.phase==='INNINGS_BREAK')return;
  const b=s.ball,oldZ=b.z; b.vy-=9.81*dt;b.x+=b.vx*dt;b.y+=b.vy*dt;b.z+=b.vz*dt;
- if(b.y<.07){b.y=.07;if(s.hit){s.bounced=true;b.vy=Math.abs(b.vy)*.35;b.vx*=.82;b.vz*=.82;}else {s.deliveryBounced=true;b.vy=Math.abs(b.vy)*.66;}}
+ if(b.y<.07){b.y=.07;if(s.hit){s.bounced=true;b.vy=Math.abs(b.vy)*.35;b.vx*=.82;b.vz*=.82;}else {s.deliveryBounced=true;const pitch=s.pitchType??'flat';const bounce=pitch==='green'?.78:pitch==='dusty'?.56:.66;b.vy=Math.abs(b.vy)*bounce;if(pitch==='green')b.vz*=1.03;if(pitch==='dusty'){b.vz*=.94;b.vx*=1.14;}}}
  if(s.hit&&b.y<.13){const drag=Math.max(0,1-1.35*dt);b.vx*=drag;b.vz*=drag;}
  if(s.tick%2===0){s.trajectory.push({x:b.x,y:b.y,z:b.z});if(s.trajectory.length>180)s.trajectory.shift();}
  if(s.phase==='DELIVERY'){
