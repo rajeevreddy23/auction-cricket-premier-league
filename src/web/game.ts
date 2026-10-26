@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { SVGRenderer } from 'three/addons/renderers/SVGRenderer.js';
 import './game.css';
+import './game/broadcast.css';
+import {broadcastMarkup,analysisMarkup,rateGraph} from './game/broadcast.ts';
 import {createMatch, applyInput, stepMatch, type MatchState,type MatchTeam,type GameInput} from '../core/cricket.ts';
 import {PITCHES,STADIUMS,type PitchType,type StadiumId} from './game/stadiums.ts';
 import {DEFAULT_AVATAR,FACE_PRESETS,HAIR_STYLES,SKIN_TONES,type AvatarIdentity,type HairStyle} from './game/avatars.ts';
@@ -14,6 +16,8 @@ const proControls=`<div class="game-control-group pro-controls" hidden><label>Le
 export function mountGame(container:HTMLElement,options:GameOptions){
  container.innerHTML=html.replace('<button data-g="camera">',`${visualSettings}<button data-g="camera">`).replace('<div class="game-actions">',`${proControls}<div class="game-actions">`);
  const el=<T extends HTMLElement=HTMLElement>(s:string)=>container.querySelector<T>(s)!;
+ const lowerThird=document.createElement('div');lowerThird.className='broadcast-lower-third';container.querySelector('.game-score')!.after(lowerThird);
+ const analysis=document.createElement('details');analysis.className='match-analysis';analysis.innerHTML='<summary>Match analysis</summary><div></div>';container.querySelector('.game-log')!.after(analysis);analysis.addEventListener('toggle',()=>{if(analysis.open)analysis.querySelector('div')!.innerHTML=analysisMarkup(state)+rateGraph(state);});
  const viewport=el('.game-viewport');let state:MatchState=createMatch('practice',teams[0],teams[1],2);let disposed=false,raf=0;let aiSwung=-1;let practiceRole='bat',quality='medium',controlMode='classic';let cameraMode=-1,replaySpeed=.5,replayAt=-1;let accumulator=0;let last=performance.now(),lastHUD=0;let frames=0,fpsSince=last;const frameTimes:number[]=[];
  const snapshots:{ball:{x:number;y:number;z:number};fielders:{x:number;z:number}[];swing:boolean}[]=[];
  const scene=new THREE.Scene();scene.background=new THREE.Color('#a2c7d3');scene.fog=new THREE.Fog('#a2c7d3',100,245);
@@ -116,7 +120,7 @@ export function mountGame(container:HTMLElement,options:GameOptions){
   if(now-fpsSince>1000){el('.game-fps').textContent=`${Math.round(frames*1000/(now-fpsSince))} FPS · ${quality}`;if(quality==='medium'&&frames*1000/(now-fpsSince)<24&&frameTimes.length>180){el<HTMLSelectElement>('[data-g="quality"]').value='low';el('[data-g="quality"]').dispatchEvent(new Event('change'));}frames=0;fpsSince=now;}
   raf=requestAnimationFrame(render);
  }
- function updateHUD(){el('.game-team').textContent=state.teams[state.batting].name;el('.game-runs').textContent=`${state.runs} / ${state.wickets}`;el('.game-overs').textContent=`${Math.floor(state.legalBalls/6)}.${state.legalBalls%6} / ${state.superOver?1:state.overs} overs`;el('.game-target').textContent=state.phase==='COMPLETE'?`${state.teams.find(t=>t.id===state.winnerId)?.name??'Match'} WIN`:state.target!==null?`TARGET ${state.target} · NEED ${Math.max(0,state.target-state.runs)}`:`INNINGS ${state.innings}${state.superOver?' · SUPER OVER':''}`;
+ function updateHUD(){lowerThird.innerHTML=broadcastMarkup(state);el('.game-team').textContent=state.teams[state.batting].name;el('.game-runs').textContent=`${state.runs} / ${state.wickets}`;el('.game-overs').textContent=`${Math.floor(state.legalBalls/6)}.${state.legalBalls%6} / ${state.superOver?1:state.overs} overs`;el('.game-target').textContent=state.phase==='COMPLETE'?`${state.teams.find(t=>t.id===state.winnerId)?.name??'Match'} WIN`:state.target!==null?`TARGET ${state.target} · NEED ${Math.max(0,state.target-state.runs)}`:`INNINGS ${state.innings}${state.superOver?' · SUPER OVER':''}`;
  el('.game-message').textContent=replayAt>=0?'REPLAY · visual playback':state.phase==='READY'?(options.mode==='practice'&&practiceRole==='bat'?'Get ready. The bowler is approaching…':'Choose line, speed and spin, then BOWL.'):state.phase==='INNINGS_BREAK'?'Innings complete. Press NEXT to continue.':state.phase==='DEAD'?`${state.lastShot} · Press NEXT for the next ball`:state.lastShot;
  const myBat=currentUser()===state.teams[state.batting].ownerId;
  el<HTMLButtonElement>('[data-g="shot"]').disabled=!myBat||state.phase!=='DELIVERY';el<HTMLButtonElement>('[data-g="bowl"]').disabled=myBat||state.phase!=='READY';el<HTMLButtonElement>('[data-g="run"]').disabled=!myBat||state.phase!=='IN_PLAY';el<HTMLButtonElement>('[data-g="next"]').disabled=!['DEAD','INNINGS_BREAK'].includes(state.phase);el('.game-log').textContent=state.events.slice(-4).map(e=>e.text).join('  •  ');
