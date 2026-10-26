@@ -4,6 +4,7 @@
 - Stadium, crowd, pitch, bats, wickets, clothing, characters, floodlights and ball: procedural original geometry/materials in src/web/game.ts. Crowd is instanced geometry. These are simple stylized models, not professional animation assets.
 - Harbour Crown Ground, Highland Pavilion and Desert Star Arena profiles: original procedural configurations in src/web/game/stadiums.ts. They use no downloaded stadium mesh or commercial texture.
 - Twenty fictional face-shape profiles, seven skin tones and five hair profiles: original procedural parameters in src/web/game/avatars.ts. They are not scans or likenesses of real cricketers.
+- Player motion poses and blending state machine: original procedural animation code in src/web/game/animation.ts. No commercial motion capture clips are bundled.
 - Dashboard bat/ball art: original CSS geometry. Navigation icons: inline SVG paths in app source.
 - Three.js: MIT, https://github.com/mrdoob/three.js/blob/dev/LICENSE
 - ws: MIT, https://github.com/websockets/ws/blob/master/LICENSE
