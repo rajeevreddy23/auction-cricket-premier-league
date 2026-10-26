@@ -1,7 +1,7 @@
 /** Shared deterministic, input-driven cricket simulation. Server is the score authority. */
 export interface CricketPlayer {id:string; name:string; batting:number; bowling:number; power:number; timing:number; accuracy:number; stamina:number; role:string}
 export interface MatchTeam {id:string; name:string; ownerId:string; players:CricketPlayer[]}
-export type GameInput = {type:'bowl';targetX:number;speed:number;spin:number}|{type:'shot';direction:number;power:number;loft:boolean}|{type:'run'}|{type:'cancelRun'}|{type:'next'};
+export type GameInput = {type:'bowl';targetX:number;speed:number;spin:number;length?:number;swing?:number;seam?:number}|{type:'shot';direction:number;power:number;loft:boolean;footwork?:number;precision?:number}|{type:'run'}|{type:'cancelRun'}|{type:'next'};
 export interface Ball {x:number;y:number;z:number;vx:number;vy:number;vz:number}
 export interface InningsScore {teamId:string;runs:number;wickets:number;balls:number;quotaBalls:number;superOver:boolean}
 export interface BatterStat {playerId:string;runs:number;balls:number;fours:number;sixes:number;out:boolean}
@@ -15,6 +15,7 @@ export interface MatchState {
  hit:boolean;bounced:boolean;deliveryBounced:boolean;wide:boolean;deliveryRuns:number;running:number;runRequested:boolean;throwTime:number|null;
  trajectory:{x:number;y:number;z:number}[];lastShot:string;delivery:number;deliveryStriker:number;superOver:boolean;superRound:number;
  pitchType?:'green'|'dusty'|'flat';
+ deliverySwing?:number;deliverySeam?:number;shotFootwork?:number;
 }
 const clamp=(n:number,min:number,max:number)=>Math.min(max,Math.max(min,n));
 const ballAtStart=():Ball=>({x:0,y:2,z:-9,vx:0,vy:0,vz:0});
@@ -30,7 +31,7 @@ export function createMatch(id:string,a:MatchTeam,b:MatchTeam,overs=2,pitchType:
  selectBowler(s);event(s,`${a.name} bat first. ${overs} overs per side.`);return s;
 }
 function selectBowler(s:MatchState){const team=s.teams[1-s.batting];const eligible=team.players.map((p,i)=>({p,i})).filter(x=>/bowl|all/i.test(x.p.role));s.bowler=(eligible.length?eligible:team.players.map((p,i)=>({p,i})))[Math.floor(s.legalBalls/6)%Math.max(1,eligible.length)].i;}
-function resetDelivery(s:MatchState){s.phase='READY';s.phaseTime=0;s.ball=ballAtStart();s.hit=false;s.bounced=false;s.deliveryBounced=false;s.wide=false;s.swing=null;s.deliveryRuns=0;s.running=0;s.runRequested=false;s.throwTime=null;s.trajectory=[];for(const f of s.fielders){f.x=f.homeX;f.z=f.homeZ;}selectBowler(s);}
+function resetDelivery(s:MatchState){s.phase='READY';s.phaseTime=0;s.ball=ballAtStart();s.hit=false;s.bounced=false;s.deliveryBounced=false;s.wide=false;s.swing=null;s.deliveryRuns=0;s.running=0;s.runRequested=false;s.throwTime=null;s.trajectory=[];s.deliverySwing=0;s.deliverySeam=0;s.shotFootwork=undefined;for(const f of s.fielders){f.x=f.homeX;f.z=f.homeZ;}selectBowler(s);}
 export function applyInput(s:MatchState,userId:string,sequence:number,input:GameInput):void {
  if(!s.teams.some(t=>t.ownerId===userId))throw Error('Not a match participant');
  if(!Number.isSafeInteger(sequence)||sequence<0||sequence<=(s.sequence[userId]??-1))throw Error('Repeated or out-of-order input');
@@ -38,16 +39,16 @@ export function applyInput(s:MatchState,userId:string,sequence:number,input:Game
  const bat=s.teams[s.batting].ownerId===userId;
  if(input.type==='bowl'){
   if(bat||s.phase!=='READY')throw Error('Only the bowling owner can deliver a ready ball');
-  assertNumber(input.targetX);assertNumber(input.speed);assertNumber(input.spin);
-  if(Math.abs(input.targetX)>2.5||input.speed<12||input.speed>36||Math.abs(input.spin)>1)throw Error('Delivery control out of range');
+  assertNumber(input.targetX);assertNumber(input.speed);assertNumber(input.spin);const length=input.length??0,swing=input.swing??0,seam=input.seam??0;assertNumber(length);assertNumber(swing);assertNumber(seam);
+  if(Math.abs(input.targetX)>2.5||input.speed<12||input.speed>36||Math.abs(input.spin)>1||Math.abs(length)>1||Math.abs(swing)>1||Math.abs(seam)>1)throw Error('Delivery control out of range');
   const p=s.teams[1-s.batting].players[s.bowler];const variation=Math.sin((s.delivery+1)*91.17)*(100-clamp(p.accuracy,0,100))/600;
-  s.ball={x:0,y:2,z:-9,vx:(input.targetX+variation)*input.speed/17,vy:-3.1,vz:input.speed};s.ball.vx+=input.spin*.35;
+  s.ball={x:0,y:2,z:-9,vx:(input.targetX+variation)*input.speed/17,vy:-3.1-length*2.15,vz:input.speed};s.ball.vx+=input.spin*.35;s.deliverySwing=swing*(.25+p.accuracy/170);s.deliverySeam=seam*(.18+p.bowling/180);
   s.phase='DELIVERY';s.phaseTime=0;s.deliveryStriker=s.striker;s.delivery++;s.lastShot='Ball released';
  }else if(input.type==='shot'){
   if(!bat||s.phase!=='DELIVERY'||s.hit||s.swing!==null)throw Error('Only the batting owner can play the delivery');
-  assertNumber(input.direction);assertNumber(input.power);
-  if(Math.abs(input.direction)>Math.PI||input.power<0||input.power>1||typeof input.loft!=='boolean')throw Error('Shot control out of range');
-  s.swing={until:s.time+.19,direction:input.direction,power:input.power,loft:input.loft};s.lastShot='Swing';
+  assertNumber(input.direction);assertNumber(input.power);const footwork=input.footwork??0,precision=input.precision??1;assertNumber(footwork);assertNumber(precision);
+  if(Math.abs(input.direction)>Math.PI||input.power<0||input.power>1||typeof input.loft!=='boolean'||Math.abs(footwork)>1||precision<0||precision>1)throw Error('Shot control out of range');
+  s.shotFootwork=input.footwork;s.swing={until:s.time+.15+precision*.04,direction:input.direction,power:input.power*(.82+precision*.18),loft:input.loft};s.lastShot='Swing';
  }else if(input.type==='run'){
   if(!bat||s.phase!=='IN_PLAY')throw Error('Runs can only be attempted by the batting owner with the ball in play');
   s.runRequested=true;if(s.running===0)s.running=2.6;
@@ -86,14 +87,15 @@ export function stepMatch(s:MatchState,dt:number):void {
  if(s.phase==='COMPLETE')return;s.tick++;s.time+=dt;s.phaseTime+=dt;
  if(s.phase==='READY'||s.phase==='DEAD'||s.phase==='INNINGS_BREAK')return;
  const b=s.ball,oldZ=b.z; b.vy-=9.81*dt;b.x+=b.vx*dt;b.y+=b.vy*dt;b.z+=b.vz*dt;
- if(b.y<.07){b.y=.07;if(s.hit){s.bounced=true;b.vy=Math.abs(b.vy)*.35;b.vx*=.82;b.vz*=.82;}else {s.deliveryBounced=true;const pitch=s.pitchType??'flat';const bounce=pitch==='green'?.78:pitch==='dusty'?.56:.66;b.vy=Math.abs(b.vy)*bounce;if(pitch==='green')b.vz*=1.03;if(pitch==='dusty'){b.vz*=.94;b.vx*=1.14;}}}
+ if(s.phase==='DELIVERY'&&!s.deliveryBounced){const progress=clamp((b.z+9)/17,0,1);b.vx+=(s.deliverySwing??0)*Math.sin(progress*Math.PI)*dt*1.9;}
+ if(b.y<.07){b.y=.07;if(s.hit){s.bounced=true;b.vy=Math.abs(b.vy)*.35;b.vx*=.82;b.vz*=.82;}else {s.deliveryBounced=true;const pitch=s.pitchType??'flat';const bounce=pitch==='green'?.78:pitch==='dusty'?.56:.66;b.vy=Math.abs(b.vy)*bounce;b.vx+=(s.deliverySeam??0)*(pitch==='green'?.85:pitch==='dusty'?.35:.18);if(pitch==='green')b.vz*=1.03;if(pitch==='dusty'){b.vz*=.94;b.vx*=1.14;}}}
  if(s.hit&&b.y<.13){const drag=Math.max(0,1-1.35*dt);b.vx*=drag;b.vz*=drag;}
  if(s.tick%2===0){s.trajectory.push({x:b.x,y:b.y,z:b.z});if(s.trajectory.length>180)s.trajectory.shift();}
  if(s.phase==='DELIVERY'){
   if(oldZ<7.8&&b.z>=7.8){
    const t=clamp((7.8-oldZ)/(b.z-oldZ),0,1);const timeAtBat=s.time-dt+dt*t;
    if(s.swing&&s.swing.until>=timeAtBat&&Math.abs(b.x)<1.25&&b.y<2.5){
-    const p=s.teams[s.batting].players[s.striker];const timing=clamp(1-Math.abs(s.swing.until-timeAtBat-.095)/.18,.15,1);
+    const p=s.teams[s.batting].players[s.striker],idealFootwork=s.deliveryBounced?.55:-.2;const footwork=s.shotFootwork===undefined?1:1-Math.min(1,Math.abs(s.shotFootwork-idealFootwork))*.22;const timing=clamp((1-Math.abs(s.swing.until-timeAtBat-.095)/.18)*footwork,.15,1);
     const speed=(14+s.swing.power*22)*(0.55+p.power/200)*timing;
     b.vx=Math.sin(s.swing.direction)*speed;b.vz=-Math.cos(s.swing.direction)*speed;
     b.vy=s.swing.loft?speed*.86:3+s.swing.power*2;b.z=7.7;s.hit=true;s.bounced=false;s.phase='IN_PLAY';s.phaseTime=0;
