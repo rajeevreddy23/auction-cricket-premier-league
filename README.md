@@ -1,6 +1,6 @@
 # Auction Cricket Premier League — development build 0.1
 
-A real source implementation: transactional auction, purchased squads, tournament scheduling/standings/playoffs, Node WebSocket matches and an input-driven Three.js cricket vertical slice. **The full 28-section specification is not complete or production-ready.** See docs/STATUS.md.
+A real source implementation: transactional auction, purchased squads, tournament scheduling/standings/playoffs, Node WebSocket matches and an input-driven Three.js cricket vertical slice. **The full 28-section specification is not complete or production-ready.** See docs/PLAYABLE_DELIVERY.md for the latest verified scope.
 
 ## Local run
 Requires Node.js 24+ (node:sqlite) and npm. From this directory:
@@ -42,3 +42,16 @@ All 160 player identities and all procedural stadium/character geometry are orig
 
 ## Online service setup (0.2)
 See docs/ONLINE_DEPLOYMENT.md and render.yaml. The frontend is already published; its Settings screen can test a separately deployed backend. The prepared Render service needs your connected account and source repository access. No external multiplayer service is provisioned yet.
+
+## Delivery and browser verification
+
+The bowler now runs in for 1.2 seconds before the authoritative release. A frame-updated approach meter helps time batting. The automatic camera stays behind the batter throughout the delivery. Classic bowling presets now apply their length, swing and seam. Fielders return collected balls visibly to the wicket, and deliveries wait for the return to finish. Online batter/bowler labels use the selected Playing XI.
+
+Run the production-browser smoke check after building:
+
+```sh
+npx playwright install chromium
+npm run test:browser
+```
+
+It starts its own in-memory server and closes it afterwards. It uses a controlled desktop browser clock, normal UI input events, and real-time mobile touch emulation. It does not inject match state. On Windows you can use installed Chrome with `$env:BROWSER_EXECUTABLE='C:/Program Files/Google/Chrome/Application/chrome.exe'`. Optional `SCREENSHOT_DIR` saves desktop/mobile screenshots. See [verification and remaining work](docs/PLAYABLE_DELIVERY.md).

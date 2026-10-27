@@ -17,7 +17,10 @@ export interface MatchState {
  pitchType?:'green'|'dusty'|'flat';
  deliveries?:{innings:number;ball:number;runs:number;total:number;wicket:boolean;wide:boolean;x:number;z:number;hit:boolean}[];
  deliverySwing?:number;deliverySeam?:number;shotFootwork?:number;
+ /** Optional for compatibility with saved matches created before run-ups. */
+ runUpRemaining?:number;releaseBall?:Ball;
 }
+export const RUN_UP_SECONDS=1.2;
 const clamp=(n:number,min:number,max:number)=>Math.min(max,Math.max(min,n));
 const ballAtStart=():Ball=>({x:0,y:2,z:-9,vx:0,vy:0,vz:0});
 function event(s:MatchState,text:string,type='info'){s.events.push({id:s.events.length? s.events[s.events.length-1].id+1:1,tick:s.tick,text,type});if(s.events.length>600)s.events.shift();}
@@ -44,7 +47,9 @@ export function applyInput(s:MatchState,userId:string,sequence:number,input:Game
   if(Math.abs(input.targetX)>2.5||input.speed<12||input.speed>36||Math.abs(input.spin)>1||Math.abs(length)>1||Math.abs(swing)>1||Math.abs(seam)>1)throw Error('Delivery control out of range');
   const p=s.teams[1-s.batting].players[s.bowler];const variation=Math.sin((s.delivery+1)*91.17)*(100-clamp(p.accuracy,0,100))/600;
   s.ball={x:0,y:2,z:-9,vx:(input.targetX+variation)*input.speed/17,vy:-3.1-length*2.15,vz:input.speed};s.ball.vx+=input.spin*.35;s.deliverySwing=swing*(.25+p.accuracy/170);s.deliverySeam=seam*(.18+p.bowling/180);
-  s.phase='DELIVERY';s.phaseTime=0;s.deliveryStriker=s.striker;s.delivery++;s.lastShot='Ball released';
+  s.releaseBall={...s.ball};s.runUpRemaining=RUN_UP_SECONDS;
+  s.ball={x:0,y:2,z:-15,vx:0,vy:0,vz:0};
+  s.phase='DELIVERY';s.phaseTime=0;s.deliveryStriker=s.striker;s.delivery++;s.lastShot='Bowler running in';
  }else if(input.type==='shot'){
   if(!bat||s.phase!=='DELIVERY'||s.hit||s.swing!==null)throw Error('Only the batting owner can play the delivery');
   assertNumber(input.direction);assertNumber(input.power);const footwork=input.footwork??0,precision=input.precision??1;assertNumber(footwork);assertNumber(precision);
@@ -88,7 +93,21 @@ export function stepMatch(s:MatchState,dt:number):void {
  if(!Number.isFinite(dt)||dt<=0||dt>.1)throw Error('Simulation delta must be 0..0.1');
  if(s.phase==='COMPLETE')return;s.tick++;s.time+=dt;s.phaseTime+=dt;
  if(s.phase==='READY'||s.phase==='DEAD'||s.phase==='INNINGS_BREAK')return;
- const b=s.ball,oldZ=b.z; b.vy-=9.81*dt;b.x+=b.vx*dt;b.y+=b.vy*dt;b.z+=b.vz*dt;
+ if(s.phase==='DELIVERY'&&(s.runUpRemaining??0)>0){
+  s.runUpRemaining=Math.max(0,s.runUpRemaining!-dt);
+  s.ball.z=-9-6*s.runUpRemaining/RUN_UP_SECONDS;
+  if(s.runUpRemaining<=1e-8){
+   s.runUpRemaining=0;s.ball={...s.releaseBall!};delete s.releaseBall;
+   s.phaseTime=0;s.lastShot='Ball released';event(s,'Ball released','release');
+  }
+  return;
+ }
+ const b=s.ball,oldZ=b.z;
+ if(s.phase==='IN_PLAY'&&s.throwTime!==null){
+  // A collected ball travels back to the wicket during the authoritative return timer.
+  const fraction=Math.min(1,dt/Math.max(dt,s.throwTime));
+  b.x+=(0-b.x)*fraction;b.y+=(.75-b.y)*fraction;b.z+=(8.7-b.z)*fraction;
+ }else{b.vy-=9.81*dt;b.x+=b.vx*dt;b.y+=b.vy*dt;b.z+=b.vz*dt;}
  if(s.phase==='DELIVERY'&&!s.deliveryBounced){const progress=clamp((b.z+9)/17,0,1);b.vx+=(s.deliverySwing??0)*Math.sin(progress*Math.PI)*dt*1.9;}
  if(b.y<.07){b.y=.07;if(s.hit){s.bounced=true;b.vy=Math.abs(b.vy)*.35;b.vx*=.82;b.vz*=.82;}else {s.deliveryBounced=true;const pitch=s.pitchType??'flat';const bounce=pitch==='green'?.78:pitch==='dusty'?.56:.66;b.vy=Math.abs(b.vy)*bounce;b.vx+=(s.deliverySeam??0)*(pitch==='green'?.85:pitch==='dusty'?.35:.18);if(pitch==='green')b.vz*=1.03;if(pitch==='dusty'){b.vz*=.94;b.vx*=1.14;}}}
  if(s.hit&&b.y<.13){const drag=Math.max(0,1-1.35*dt);b.vx*=drag;b.vz*=drag;}
@@ -114,6 +133,6 @@ export function stepMatch(s:MatchState,dt:number):void {
     if(d<1.25&&b.y<2.1){if(!s.bounced&&b.y>.25){endBall(s,'Caught',true);return;}s.throwTime=.9+Math.hypot(f.x,f.z-8)/35;b.vx=b.vz=b.vy=0;break;}
    }
   }
-  if(s.phaseTime>14||Math.hypot(b.vx,b.vz)<.15&&s.phaseTime>3){endBall(s,s.deliveryRuns?`${s.deliveryRuns} runs`:'Dot ball');}
+  if(s.throwTime===null&&(s.phaseTime>14||Math.hypot(b.vx,b.vz)<.15&&s.phaseTime>3)){endBall(s,s.deliveryRuns?`${s.deliveryRuns} runs`:'Dot ball');}
  }
 }

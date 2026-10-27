@@ -15,9 +15,9 @@ test('requires independent owners, eleven unique squad players and supported ove
 test('owns a cloned roster: caller mutation cannot change purchased match identities',()=>{const a=team('a'),s=createMatch('x',a,team('b'));a.players[0].name='Changed';assert.notEqual(s.teams[0].players[0].name,'Changed');});
 test('only valid participant and bowling owner can release ball; failed input has no effects',()=>{const s=match(),before=JSON.stringify(s);assert.throws(()=>applyInput(s,'intruder',0,{type:'bowl',targetX:0,speed:25,spin:0}));assert.equal(JSON.stringify(s),before);assert.throws(()=>input(s,'a',{type:'bowl',targetX:0,speed:25,spin:0}));assert.equal(JSON.stringify(s),before);bowl(s);assert.equal(s.phase,'DELIVERY');assert.throws(()=>bowl(s));});
 test('input sequence rejects replay/out-of-order and invalid numbers without consuming sequence',()=>{const s=match();for(const seq of [-1,1.5,NaN])assert.throws(()=>applyInput(s,'b',seq,{type:'bowl',targetX:0,speed:25,spin:0}));for(const action of [{type:'bowl',targetX:NaN,speed:25,spin:0},{type:'bowl',targetX:0,speed:Infinity,spin:0},{type:'bowl',targetX:0,speed:25,spin:2},{type:'bowl',targetX:3,speed:25,spin:0},{type:'bowl',targetX:0,speed:11,spin:0}])assert.throws(()=>applyInput(s,'b',0,action as GameInput));assert.equal(s.sequence.b,undefined);applyInput(s,'b',3,{type:'bowl',targetX:0,speed:25,spin:0});assert.throws(()=>applyInput(s,'b',3,{type:'next'}));assert.throws(()=>applyInput(s,'b',2,{type:'next'}));assert.equal(s.sequence.b,3);});
-test('real physical delivery advances ball, gravity, bounce and sampled trajectory',()=>{const s=match();bowl(s);const initial={...s.ball};for(let i=0;i<20;i++)stepMatch(s,1/60);assert.ok(s.ball.z>initial.z);assert.ok(s.ball.y<initial.y);assert.ok(s.trajectory.length>0);tickUntil(s,x=>x.deliveryBounced);assert.ok(s.ball.y>=.07);});
+test('real physical delivery advances ball, gravity, bounce and sampled trajectory',()=>{const s=match();bowl(s);tickUntil(s,x=>x.runUpRemaining===0);const initial={...s.ball};for(let i=0;i<20;i++)stepMatch(s,1/60);assert.ok(s.ball.z>initial.z);assert.ok(s.ball.y<initial.y);assert.ok(s.trajectory.length>0);tickUntil(s,x=>x.deliveryBounced);assert.ok(s.ball.y>=.07);});
 test('pitch profiles deterministically change authoritative delivery bounce',()=>{const green=createMatch('green',team('a'),team('b'),1,'green'),dusty=createMatch('dusty',team('c'),team('d'),1,'dusty');bowl(green,25,.2);bowl(dusty,25,.2);tickUntil(green,x=>x.deliveryBounced);tickUntil(dusty,x=>x.deliveryBounced);assert.equal(green.pitchType,'green');assert.equal(dusty.pitchType,'dusty');assert.ok(green.ball.vy>dusty.ball.vy);assert.ok(green.ball.vz>dusty.ball.vz);});
-test('pro bowling swing and seam controls alter the authoritative trajectory',()=>{const plain=createMatch('plain',team('a'),team('b'),1,'green'),moving=createMatch('moving',team('c'),team('d'),1,'green');input(plain,'b',{type:'bowl',targetX:0,speed:28,spin:0,length:0,swing:0,seam:0});input(moving,'d',{type:'bowl',targetX:0,speed:28,spin:0,length:0,swing:1,seam:1});for(let i=0;i<20;i++){stepMatch(plain,1/60);stepMatch(moving,1/60);}assert.ok(moving.ball.x>plain.ball.x);tickUntil(plain,x=>x.deliveryBounced);tickUntil(moving,x=>x.deliveryBounced);assert.ok(moving.ball.vx>plain.ball.vx);});
+test('pro bowling swing and seam controls alter the authoritative trajectory',()=>{const plain=createMatch('plain',team('a'),team('b'),1,'green'),moving=createMatch('moving',team('c'),team('d'),1,'green');input(plain,'b',{type:'bowl',targetX:0,speed:28,spin:0,length:0,swing:0,seam:0});input(moving,'d',{type:'bowl',targetX:0,speed:28,spin:0,length:0,swing:1,seam:1});tickUntil(plain,x=>x.runUpRemaining===0);tickUntil(moving,x=>x.runUpRemaining===0);for(let i=0;i<20;i++){stepMatch(plain,1/60);stepMatch(moving,1/60);}assert.ok(moving.ball.x>plain.ball.x);tickUntil(plain,x=>x.deliveryBounced);tickUntil(moving,x=>x.deliveryBounced);assert.ok(moving.ball.vx>plain.ball.vx);});
 test('pro control ranges reject manipulated delivery and shot inputs',()=>{for(const bad of [{type:'bowl',targetX:0,speed:25,spin:0,length:2},{type:'bowl',targetX:0,speed:25,spin:0,swing:-2},{type:'bowl',targetX:0,speed:25,spin:0,seam:1.1}]){const s=match();assert.throws(()=>input(s,'b',bad as GameInput));}const s=match();bowl(s);assert.throws(()=>input(s,'a',{type:'shot',direction:0,power:1,loft:false,footwork:2}));assert.throws(()=>input(s,'a',{type:'shot',direction:0,power:1,loft:false,precision:-1}));});
 test('invalid simulation deltas reject and completed game stops mutating',()=>{const s=match();for(const dt of [-1,0,NaN,Infinity,.11])assert.throws(()=>stepMatch(s,dt));completeByInputs(s,n=>n===1);const saved=JSON.stringify(s);stepMatch(s,1/60);assert.equal(JSON.stringify(s),saved);});
 test('dot ball credits legal ball to the delivery striker and bowler',()=>{const s=match();bowl(s,25,.5);finishBall(s);assert.equal(s.lastShot,'Dot ball');assert.equal(s.runs,0);assert.equal(s.wickets,0);assert.equal(s.legalBalls,1);assert.equal(s.batters[0][0].balls,1);assert.equal(s.bowlers[1][s.bowler].balls,1);});
@@ -39,3 +39,50 @@ test('serialized mid-delivery checkpoint restores identical simulation',()=>{con
 test('one swing per delivery rejects repeated swing spam despite increasing sequences',()=>{const s=match();bowl(s);input(s,'a',{type:'shot',direction:0,power:1,loft:true});const sequence=s.sequence.a;assert.throws(()=>input(s,'a',{type:'shot',direction:Math.PI,power:1,loft:true}));assert.equal(s.sequence.a,sequence);});
 test('ten wickets end innings before full two-over quota and preserve actual legal balls',()=>{const s=createMatch('all-out',team('a'),team('b'),2);for(let i=0;i<10;i++){bowl(s,12);finishBall(s);assert.equal(s.wickets,i+1);if(i<9)next(s);}assert.equal(s.phase,'INNINGS_BREAK');assert.equal(s.inningsScores[0].wickets,10);assert.equal(s.inningsScores[0].balls,10);assert.equal(s.inningsScores[0].quotaBalls,12);assert.equal(s.batters[0].filter(p=>p.out).length,10);});
 test('second innings chase ends immediately when a physical shot reaches target',()=>{const s=match();for(let i=0;i<6;i++){bowl(s,25,.5);finishBall(s);if(i<5)next(s);}assert.equal(s.inningsScores[0].runs,0);next(s);hit(s);finishBall(s);assert.equal(s.phase,'COMPLETE');assert.equal(s.winnerId,'b');assert.equal(s.inningsScores[1].balls,1);assert.equal(s.inningsScores[1].runs,6);});
+
+
+test('run-up holds the ball before a single authoritative release, without scoring',()=>{
+ const s=match();bowl(s);assert.equal(s.ball.vz,0);assert.equal(s.ball.z,-15);
+ for(let i=0;i<60;i++)stepMatch(s,1/60);
+ assert.ok(s.runUpRemaining!>0);assert.ok(s.ball.z>-15&&s.ball.z<-9);
+ assert.equal(s.ball.y,2);assert.equal(s.legalBalls,0);assert.equal(s.trajectory.length,0);
+ assert.throws(()=>bowl(s));tickUntil(s,x=>x.runUpRemaining===0);
+ assert.equal(s.ball.z,-9);assert.equal(s.ball.vz,25);
+ stepMatch(s,1/60);assert.ok(s.ball.z>-9);finishBall(s);
+ assert.equal(s.events.filter(e=>e.type==='release').length,1);assert.equal(s.legalBalls,1);
+});
+
+test('run-up checkpoint resumes identically including release and final score',()=>{
+ const s=match();bowl(s);for(let i=0;i<35;i++)stepMatch(s,1/60);
+ const restored=JSON.parse(JSON.stringify(s));
+ for(let i=0;i<300;i++){stepMatch(s,1/60);stepMatch(restored,1/60);}
+ assert.deepEqual(restored,s);assert.equal(s.phase,'DEAD');assert.equal(s.legalBalls,1);
+});
+
+test('legacy released checkpoint without run-up fields continues safely',()=>{
+ const s=match();bowl(s);s.ball={...s.releaseBall!};delete s.runUpRemaining;delete s.releaseBall;
+ stepMatch(s,1/60);assert.ok(s.ball.z>-9);finishBall(s);assert.equal(s.legalBalls,1);
+});
+
+test('fielder collects a ground shot and visibly returns ball to the wicket',()=>{
+ const s=match();hit(s,2,0,false);tickUntil(s,x=>x.throwTime!==null);
+ const distance=()=>Math.hypot(s.ball.x,s.ball.y-.75,s.ball.z-8.7);
+ const before=distance();assert.ok(before>0);stepMatch(s,1/60);assert.ok(distance()<before);
+ finishBall(s);assert.ok(distance()<1e-8);assert.equal(s.legalBalls,1);assert.equal(s.wickets,0);
+});
+
+test('two interleaved playable overs preserve independent run-ups, wides and scorecards',()=>{
+ const a=match(),b=createMatch('parallel',team('c'),team('d'),1);
+ for(let n=0;n<6;n++){
+  bowl(a,25,.5);bowl(b,25,.5);
+  let ticks=0;while(a.phase==='DELIVERY'||b.phase==='DELIVERY'){
+   stepMatch(a,1/60);stepMatch(b,1/60);assert.ok(++ticks<300);
+  }
+  assert.equal(a.legalBalls,n+1);assert.equal(b.legalBalls,n+1);
+  if(n<5){next(a);next(b);}
+ }
+ assert.equal(a.phase,'INNINGS_BREAK');assert.equal(b.phase,'INNINGS_BREAK');
+ assert.equal(a.events.filter(e=>e.type==='release').length,6);
+ assert.equal(b.events.filter(e=>e.type==='release').length,6);
+ assert.equal(a.inningsScores[0].balls,6);assert.equal(b.inningsScores[0].balls,6);
+});
