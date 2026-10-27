@@ -1,6 +1,6 @@
 # Auction Cricket Premier League — development build 0.1
 
-A real source implementation: transactional auction, purchased squads, tournament scheduling/standings/playoffs, Node WebSocket matches and an input-driven Three.js cricket vertical slice. **The full 28-section specification is not complete or production-ready.** See docs/STATUS.md.
+A real source implementation: transactional auction, purchased squads, tournament scheduling/standings/playoffs, Node WebSocket matches and an input-driven Three.js cricket vertical slice. **The full 28-section specification is not complete or production-ready.** See docs/PLAYABLE_DELIVERY.md for the latest verified scope.
 
 ## Local run
 Requires Node.js 24+ (node:sqlite) and npm. From this directory:
@@ -42,3 +42,30 @@ All 160 player identities and all procedural stadium/character geometry are orig
 
 ## Online service setup (0.2)
 See docs/ONLINE_DEPLOYMENT.md and render.yaml. The frontend is already published; its Settings screen can test a separately deployed backend. The prepared Render service needs your connected account and source repository access. No external multiplayer service is provisioned yet.
+
+## Delivery and browser verification
+
+The bowler now runs in for 1.2 seconds before the authoritative release. A frame-updated approach meter helps time batting. The automatic camera stays behind the batter throughout the delivery. Classic bowling presets now apply their length, swing and seam. Fielders return collected balls visibly to the wicket, and deliveries wait for the return to finish. Online batter/bowler labels use the selected Playing XI.
+
+Run the production-browser smoke check after building:
+
+```sh
+npx playwright install chromium
+npm run test:browser
+```
+
+It starts its own in-memory server and closes it afterwards. It uses a controlled desktop browser clock, normal UI input events, and real-time mobile touch emulation. It does not inject match state. On Windows you can use installed Chrome with `$env:BROWSER_EXECUTABLE='C:/Program Files/Google/Chrome/Application/chrome.exe'`. Optional `SCREENSHOT_DIR` saves desktop/mobile screenshots. See [verification and remaining work](docs/PLAYABLE_DELIVERY.md).
+
+## Manual fielding, match rules and live acceptance
+
+Bowling owners can choose **Control nearest**, use **WASD** or hold the touch direction buttons, and throw to the striker's end (**T**) or bowler's end (**Y**) after collection. **Auto field** restores automatic chasing. An abandoned collection returns automatically after two seconds. All eleven purchased players are represented, and purchased agility/fielding/keeper ratings affect movement and collection reach.
+
+Pro bowling exposes the front-foot release position. Positive oversteps incur a no-ball penalty and a free hit that carries over wides/no-balls. Byes, leg byes and a simplified right-handed pad/LBW model are included. Twenty-over bowling quotas are enforced, using purchased part-time bowlers when specialists exhaust their allowance. This does not implement every cricket law.
+
+Last-ball replay records root/joint/bat transforms and ball/field positions. Practice pauses during replay; online scoring stays authoritative and gameplay inputs are blocked until replay ends.
+
+```sh
+npm run test:online
+```
+
+This additional acceptance script starts an isolated persistent server, makes 44 actual HTTP auction purchases for four owners in two tournaments, plays two concurrent league matches and their finals with socket inputs and real-time server physics, verifies points/champions, then checks both champions after restarting the server. It takes roughly a minute or two and never injects match state or scores. CI runs it as well as the browser smoke test.

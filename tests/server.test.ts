@@ -88,12 +88,23 @@ test('five live websocket sessions isolate physics inputs, enforce capacity and 
   const first=states[0],bowlerId=first.teams[1].ownerId,bowlerIndex=owners.findIndex(o=>o.user.id===bowlerId);
   sockets[bowlerIndex].send(JSON.stringify({type:'input',matchId:first.id,sequence:0,action:{type:'bowl',targetX:0,speed:24,spin:0}}));
   await new Promise(done=>setTimeout(done,80));
-  assert.equal(a.sessions.get(first.id)!.state.phase,'DELIVERY');assert(a.sessions.get(first.id)!.state.ball.z>-9,'authoritative physics advances only released session');for(const other of states.slice(1))assert.equal(a.sessions.get(other.id)!.state.phase,'READY');
+  assert.equal(a.sessions.get(first.id)!.state.phase,'DELIVERY');assert(a.sessions.get(first.id)!.state.ball.z>-15,'authoritative run-up advances only the selected session');for(const other of states.slice(1))assert.equal(a.sessions.get(other.id)!.state.phase,'READY');
   sockets[bowlerIndex].send(JSON.stringify({type:'input',matchId:first.id,sequence:0,action:{type:'bowl',targetX:0,speed:24,spin:0}}));await new Promise(done=>setTimeout(done,30));assert(received.get(bowlerId)!.some(m=>m.type==='error'));
   // A completed authoritative state still reaches attached clients even when worker admission is released.
   const finishing=a.sessions.get(states[1].id)!;finishing.state.phase='COMPLETE';finishing.state.winnerId=finishing.state.teams[0].id;finishing.state.inningsScores=finishing.state.teams.map((team,index)=>({teamId:team.id,runs:index===0?10:5,wickets:0,balls:6,quotaBalls:6,superOver:false}));
   await new Promise(done=>setTimeout(done,45));assert(!a.sessions.has(finishing.id));assert(received.get(finishing.state.teams[0].ownerId)!.some(m=>m.type==='match'&&m.data.phase==='COMPLETE'));
   const table=(await a.req(`/api/tournaments/${t.id}`,host.token)).data.standings;assert.equal(table.find((r:any)=>r.teamId===finishing.state.winnerId).points,2);
+  // Two real socket-controlled deliveries run concurrently; three other matches remain ready.
+  const parallel=states[2],parallelOwner=parallel.teams[1].ownerId;
+  sockets[owners.findIndex(o=>o.user.id===parallelOwner)].send(JSON.stringify({type:'input',matchId:parallel.id,sequence:0,action:{type:'bowl',targetX:.5,speed:25,spin:0}}));
+  const deadline=Date.now()+6000;
+  while(Date.now()<deadline&&[first,parallel].some(s=>a.sessions.get(s.id)!.state.legalBalls!==1||!received.get(s.teams[0].ownerId)!.some(m=>m.type==='match'&&m.data.legalBalls===1)))await new Promise(done=>setTimeout(done,20));
+  for(const state of [first,parallel]){
+   const live=a.sessions.get(state.id)!.state;assert.equal(live.legalBalls,1);assert.equal(live.phase,'DEAD');
+   assert.equal(live.events.filter(e=>e.type==='release').length,1);
+   assert(received.get(state.teams[0].ownerId)!.some(m=>m.type==='match'&&m.data.legalBalls===1));
+  }
+  for(const state of states.slice(3))assert.equal(a.sessions.get(state.id)!.state.phase,'READY');
   const leavingOwner=first.teams[0].ownerId,leavingIndex=owners.findIndex(o=>o.user.id===leavingOwner);sockets[leavingIndex].send(JSON.stringify({type:'leaveMatch'}));await new Promise(done=>setTimeout(done,30));assert.equal((await a.req(`/api/matches/${first.id}`,host.token)).data.connectionStatus,'waiting');assert(received.get(leavingOwner)!.some(m=>m.type==='matchLeft'));
   // The tournament subscription and socket remain usable after leaving the match.
   sockets[leavingIndex].send(JSON.stringify({type:'subscribe',tournamentId:t.id}));await new Promise(done=>setTimeout(done,20));assert(received.get(leavingOwner)!.some(m=>m.type==='tournament'));

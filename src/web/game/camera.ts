@@ -15,5 +15,5 @@ export const CAMERA_PROFILES:CameraProfile[]=[
  {id:'spider',name:'Spidercam',position:[8,17,4],look:[0,.5,3],followBall:true},
  {id:'pitch',name:'Pitch Top',position:[0,28,0],look:[0,0,0],followBall:true}
 ];
-export function automaticCameraIndex(phase:string,ballZ:number,time:number){if(phase==='READY')return 1;if(phase==='DELIVERY')return ballZ<4?2:0;if(phase==='IN_PLAY')return Math.floor(time*1.2)%2?9:10;return 2;}
+export function automaticCameraIndex(phase:string,ballZ:number,time:number){if(phase==='READY')return 1;if(phase==='DELIVERY')return 0;if(phase==='IN_PLAY')return Math.floor(time*1.2)%2?9:10;return 2;}
 export function applyCamera(camera:THREE.PerspectiveCamera,profile:CameraProfile,context:CameraContext,instant=false){const target=new THREE.Vector3(...profile.position);if(profile.followBall){target.x+=context.ball.x*.12;target.z+=context.ball.z*.06;}camera.position.lerp(target,instant?1:.09);const look=profile.followBall?context.ball:new THREE.Vector3(...profile.look);camera.lookAt(look.x,Math.max(.25,look.y),look.z);}

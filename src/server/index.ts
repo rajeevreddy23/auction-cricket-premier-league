@@ -12,7 +12,7 @@ import {TEAM_PURSE} from '../core/money.ts';
 import { createMatch,applyInput,stepMatch,type MatchState,type CricketPlayer,type GameInput } from '../core/cricket.ts';
 
 interface Aggregate extends TournamentState { teams:Team[];players:Player[];auction:Auction;teamCount:number;currency?:'INR_LAKH';private:boolean;inviteCode:string; }
-interface Session {id:string;tournamentId:string;fixtureId:string;state:MatchState;status:'active'|'paused'|'completed';lastPresence:number;lastSaved:number;}
+interface Session {id:string;tournamentId:string;fixtureId:string;state:MatchState;status:'active'|'paused'|'completed';lastPresence:number;lastSaved:number;accumulator?:number;}
 interface Client {ws:WebSocket;user:{id:string,name:string};tournamentId?:string;matchId?:string;count:number;window:number;alive:boolean;tokenHash:string;}
 interface ServerOptions {dbPath?:string;staticDir?:string;maxMatches?:number;graceMs?:number;allowedOrigin?:string;tickMs?:number;heartbeatMs?:number;}
 const hash=(value:string)=>createHash('sha256').update(value).digest('hex');
@@ -21,7 +21,7 @@ function string(value:unknown,label:string,max=100):string {assert(typeof value=
 function number(value:unknown,min:number,max:number,label:string):number {assert(typeof value==='number'&&Number.isSafeInteger(value)&&value>=min&&value<=max,`Invalid ${label}`);return value;}
 function json(res:ServerResponse,code:number,data:unknown) {res.writeHead(code,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));}
 async function body(req:IncomingMessage):Promise<Record<string,unknown>> {let raw='';for await(const chunk of req){raw+=chunk;assert(Buffer.byteLength(raw)<=16384,'Request body too large');}const result=JSON.parse(raw||'{}');assert(result&&typeof result==='object'&&!Array.isArray(result),'JSON object required');return result;}
-function toGamePlayer(p:Player):CricketPlayer {return {id:p.id,name:p.name,role:p.role,batting:p.batting,bowling:p.bowling,power:p.power,timing:p.timing,accuracy:p.accuracy,stamina:p.stamina};}
+function toGamePlayer(p:Player):CricketPlayer {return {id:p.id,name:p.name,role:p.role,batting:p.batting,bowling:p.bowling,power:p.power,timing:p.timing,accuracy:p.accuracy,stamina:p.stamina,fielding:p.fielding,agility:p.agility,wicketkeeping:p.wicketkeeping};}
 
 /** One-process local authoritative runtime. Capacity is bounded, not production autoscaling. */
 export function createServer(options:ServerOptions={}) {
@@ -148,11 +148,11 @@ export function createServer(options:ServerOptions={}) {
  heartbeat.unref();
  let lastTick=performance.now(),lastAuctionTick=0,stopped=false;
  const timer=setInterval(()=>{
-  if(stopped)return;const now=Date.now(),perf=performance.now(),dt=Math.min((perf-lastTick)/1000,.1);lastTick=perf;
+  if(stopped)return;const now=Date.now(),perf=performance.now(),dt=Math.min((perf-lastTick)/1000,.25);lastTick=perf;
   if(now-lastAuctionTick>=1000){lastAuctionTick=now;for(const t of store.list<Aggregate>())if(t.status==='AUCTION'&&t.auction.current?.status==='OPEN'&&t.auction.current.deadline<=now){try{store.transaction(()=>{closeLot(t.auction,t.players,t.teams,now);store.save(t);store.audit('auction-clock',t.id,'closeLot');});broadcast(t);}catch{ /* Invalid persisted state is left for host inspection, never silently sold. */ }}}
   for(const s of sessions.values())try{
-   if(presence(s)){s.lastPresence=now;stepMatch(s.state,dt);}
-   else if(now-s.lastPresence>graceMs){s.status='paused';store.saveMatch(s);sessions.delete(s.id);}
+   if(presence(s)){s.lastPresence=now;s.accumulator=(s.accumulator??0)+dt;while(s.accumulator>=1/60&&s.state.phase!=='COMPLETE'){stepMatch(s.state,1/60);s.accumulator-=1/60;}}else s.accumulator=0;
+   if(!presence(s)&&now-s.lastPresence>graceMs){s.status='paused';store.saveMatch(s);sessions.delete(s.id);}
    if(s.state.phase==='COMPLETE'&&s.status==='active')complete(s);
    else if(now-s.lastSaved>=1000){s.lastSaved=now;store.saveMatch(s);}
    for(const c of clients)if(c.matchId===s.id)emit(c,'match',publicMatch(s));
