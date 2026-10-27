@@ -13,3 +13,5 @@
 .game-options{flex-wrap:wrap}.game-control-group{min-width:0}.game-viewport{flex-shrink:0}
 
 @media(max-width:650px){.game-controls{grid-template-columns:minmax(0,1fr)}.broadcast-lower-third{flex-wrap:wrap}}
+
+.field-controls{grid-column:1/-1;display:flex;align-items:center;flex-wrap:wrap;gap:7px;border:1px solid #476359;padding:10px;border-radius:8px}.field-controls[hidden]{display:none}.field-controls strong{color:#d4f25c}.field-controls button{min-height:44px}.field-pad{display:flex;gap:4px;touch-action:none}.field-controls span{color:#a9c8b2;font-size:11px}

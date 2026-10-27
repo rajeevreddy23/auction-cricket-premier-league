@@ -75,7 +75,7 @@ test('two interleaved playable overs preserve independent run-ups, wides and sco
  const a=match(),b=createMatch('parallel',team('c'),team('d'),1);
  for(let n=0;n<6;n++){
   bowl(a,25,.5);bowl(b,25,.5);
-  let ticks=0;while(a.phase==='DELIVERY'||b.phase==='DELIVERY'){
+  let ticks=0;while(!['DEAD','INNINGS_BREAK'].includes(a.phase)||!['DEAD','INNINGS_BREAK'].includes(b.phase)){
    stepMatch(a,1/60);stepMatch(b,1/60);assert.ok(++ticks<300);
   }
   assert.equal(a.legalBalls,n+1);assert.equal(b.legalBalls,n+1);
@@ -85,4 +85,97 @@ test('two interleaved playable overs preserve independent run-ups, wides and sco
  assert.equal(a.events.filter(e=>e.type==='release').length,6);
  assert.equal(b.events.filter(e=>e.type==='release').length,6);
  assert.equal(a.inningsScores[0].balls,6);assert.equal(b.inningsScores[0].balls,6);
+});
+
+
+test('manual field control validates owner and numbers without consuming rejected sequence',()=>{
+ const s=match(),before=JSON.stringify(s);
+ assert.throws(()=>input(s,'a',{type:'field',fielder:0,dx:1,dz:0}));
+ for(const fielder of [-1,10,1.5,NaN])assert.throws(()=>input(s,'b',{type:'field',fielder,dx:0,dz:0}));
+ assert.throws(()=>input(s,'b',{type:'field',fielder:0,dx:Infinity,dz:0}));
+ assert.equal(JSON.stringify(s),before);assert.throws(()=>input(s,'b',{type:'throw',end:'striker'}));
+});
+
+test('manual fielder moves at bounded speed, holds collection, and throws to chosen end',()=>{
+ const s=match();input(s,'b',{type:'field',fielder:2,dx:1,dz:1});
+ hit(s,2,0,false);const before={...s.fielders[2]};stepMatch(s,1/60);
+ assert.ok(Math.hypot(s.fielders[2].x-before.x,s.fielders[2].z-before.z)<=7/60+1e-8);
+ input(s,'b',{type:'field',fielder:2,dx:0,dz:0});tickUntil(s,x=>x.ballHolder!=null);
+ const saved=JSON.parse(JSON.stringify(s));input(s,'b',{type:'throw',end:'nonStriker'});
+ assert.equal(s.throwEnd,'nonStriker');assert.equal(s.ballHolder,null);finishBall(s);
+ assert.ok(Math.abs(s.ball.z+8.7)<1e-8);assert.equal(s.wickets,0);assert.equal(s.legalBalls,1);
+ input(saved,'b',{type:'throw',end:'nonStriker'});finishBall(saved);assert.deepEqual(saved,JSON.parse(JSON.stringify(s)));
+});
+
+test('abandoned manual collection automatically returns ball and cannot stall an over',()=>{
+ const s=match();input(s,'b',{type:'field',fielder:2,dx:0,dz:0});hit(s,2,0,false);
+ tickUntil(s,x=>x.ballHolder!=null);finishBall(s);assert.equal(s.legalBalls,1);
+ assert.equal(s.ballHolder,null);assert.equal(s.phase,'DEAD');
+});
+
+test('front-foot no ball scores an extra without a legal ball, carries a free hit across wides',()=>{
+ const s=match();input(s,'b',{type:'bowl',speed:12,targetX:0,spin:0,releaseOffset:.1});finishBall(s);
+ assert.equal(s.noBall,true);assert.equal(s.wickets,0);assert.equal(s.legalBalls,0);
+ assert.equal(s.extras?.noBalls,1);assert.equal(s.batters[0][0].runs,0);assert.equal(s.freeHit,true);
+ assert.equal(s.bowlers[1][s.bowler].runs,1);next(s);bowl(s,25,2.5);finishBall(s);
+ assert.equal(s.freeHit,true);assert.equal(s.legalBalls,0);assert.equal(s.extras?.wides,1);
+ next(s);bowl(s,12);finishBall(s);assert.equal(s.wickets,0);assert.equal(s.legalBalls,1);assert.equal(s.freeHit,false);
+ next(s);bowl(s,12);finishBall(s);assert.equal(s.wickets,1);assert.equal(s.legalBalls,2);
+});
+
+test('no ball overrides wide and validates front foot before state mutation',()=>{
+ const s=match(),before=JSON.stringify(s);for(const releaseOffset of [NaN,Infinity,.51,-.51])assert.throws(()=>input(s,'b',{type:'bowl',speed:25,targetX:2.5,spin:0,releaseOffset}));assert.equal(JSON.stringify(s),before);
+ input(s,'b',{type:'bowl',speed:25,targetX:2.5,spin:0,releaseOffset:.1});finishBall(s);
+ assert.equal(s.extras?.noBalls,1);assert.equal(s.extras?.wides,0);assert.equal(s.legalBalls,0);assert.equal(s.deliveries?.[0].wide,false);
+});
+
+test('no-ball boundary credits six to batter plus one extra to team and bowler',()=>{
+ const s=match();input(s,'b',{type:'bowl',speed:25,targetX:0,spin:0,releaseOffset:.1});tickUntil(s,x=>x.ball.z>5.4);
+ input(s,'a',{type:'shot',direction:0,power:1,loft:true});finishBall(s);
+ assert.equal(s.runs,7);assert.equal(s.batters[0][0].runs,6);assert.equal(s.batters[0][0].sixes,1);
+ assert.equal(s.bowlers[1][s.bowler].runs,7);assert.equal(s.legalBalls,0);assert.equal(s.deliveries?.[0].runs,7);
+});
+
+test('keeper miss can reach a bye boundary without crediting batter or charging bowler',()=>{
+ const s=match();s.fielders[9].x=12; // Deliberately misplaced keeper: exercise missed-ball physics and scoring.
+ input(s,'b',{type:'field',fielder:9,dx:1,dz:0});bowl(s,25,.5);finishBall(s);
+ assert.equal(s.hit,false);assert.equal(s.runs,4);assert.equal(s.extras?.byes,4);
+ assert.equal(s.batters[0][0].runs,0);assert.equal(s.batters[0][0].fours,0);assert.equal(s.bowlers[1][s.bowler].runs,0);
+ assert.equal(s.legalBalls,1);assert.equal(s.lastShot,'FOUR BYES');
+});
+
+
+test('attempted pro shot hitting a pad in line with projected stumps is LBW with bowler credit',()=>{
+ const s=match();bowl(s,12,.15);input(s,'a',{type:'shot',direction:0,power:1,loft:false,footwork:1});finishBall(s);
+ assert.equal(s.lastShot,'LBW');assert.equal(s.wickets,1);assert.equal(s.bowlers[1][s.bowler].wickets,1);assert.equal(s.legalBalls,1);
+});
+
+test('pad contact outside off stump permits leg byes from attempted shot, without batter/bowler runs',()=>{
+ const s=match();for(const f of s.fielders){f.x=-40;f.z=-40;}
+ bowl(s,12,.5);input(s,'a',{type:'shot',direction:0,power:1,loft:false,footwork:0});tickUntil(s,x=>x.phase==='IN_PLAY');
+ assert.equal(s.bodyContact,true);input(s,'a',{type:'run'});input(s,'a',{type:'cancelRun'});finishBall(s);
+ assert.equal(s.wickets,0);assert.equal(s.runs,1);assert.equal(s.extras?.legByes,1);assert.equal(s.batters[0][0].runs,0);assert.equal(s.bowlers[1][s.bowler].runs,0);
+});
+
+
+test('all eleven purchased fielding players are represented once, including bowler and keeper',()=>{
+ const s=match();assert.equal(s.fielders.length,10);const ids=[s.teams[1].players[s.bowler].id,...s.fielders.map(f=>f.playerId)];
+ assert.equal(new Set(ids).size,11);assert.deepEqual(new Set(ids),new Set(s.teams[1].players.map(p=>p.id)));
+});
+
+
+test('legacy nine-fielder checkpoint upgrades at the next safe delivery boundary',()=>{
+ const s=match();s.fielders.splice(8,1);bowl(s,12);finishBall(s);next(s);
+ assert.equal(s.fielders.length,10);assert.equal(s.phase,'READY');assert.equal(new Set(s.fielders.map(f=>f.playerId)).size,10);
+});
+
+
+test('twenty-over match enforces four-over quotas and uses purchased part-time bowlers when needed',()=>{
+ const a=team('a'),b=team('b');b.players.forEach((p,i)=>p.role=i>=7?'bowler':'batter');const s=createMatch('quota',a,b,20);
+ let previous=-1;for(let over=0;over<20;over++){
+  assert.notEqual(s.bowler,previous);previous=s.bowler;
+  for(let ball=0;ball<6;ball++){bowl(s,25,.5);finishBall(s);if(over<19||ball<5)next(s);}
+ }
+ assert.equal(s.legalBalls,120);assert.equal(s.phase,'INNINGS_BREAK');assert(s.bowlers[1].every(b=>b.balls<=24));
+ assert.equal(s.bowlers[1].reduce((n,b)=>n+b.balls,0),120);assert(s.bowlers[1].slice(0,7).some(b=>b.balls>0));
 });

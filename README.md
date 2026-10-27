@@ -55,3 +55,17 @@ npm run test:browser
 ```
 
 It starts its own in-memory server and closes it afterwards. It uses a controlled desktop browser clock, normal UI input events, and real-time mobile touch emulation. It does not inject match state. On Windows you can use installed Chrome with `$env:BROWSER_EXECUTABLE='C:/Program Files/Google/Chrome/Application/chrome.exe'`. Optional `SCREENSHOT_DIR` saves desktop/mobile screenshots. See [verification and remaining work](docs/PLAYABLE_DELIVERY.md).
+
+## Manual fielding, match rules and live acceptance
+
+Bowling owners can choose **Control nearest**, use **WASD** or hold the touch direction buttons, and throw to the striker's end (**T**) or bowler's end (**Y**) after collection. **Auto field** restores automatic chasing. An abandoned collection returns automatically after two seconds. All eleven purchased players are represented, and purchased agility/fielding/keeper ratings affect movement and collection reach.
+
+Pro bowling exposes the front-foot release position. Positive oversteps incur a no-ball penalty and a free hit that carries over wides/no-balls. Byes, leg byes and a simplified right-handed pad/LBW model are included. Twenty-over bowling quotas are enforced, using purchased part-time bowlers when specialists exhaust their allowance. This does not implement every cricket law.
+
+Last-ball replay records root/joint/bat transforms and ball/field positions. Practice pauses during replay; online scoring stays authoritative and gameplay inputs are blocked until replay ends.
+
+```sh
+npm run test:online
+```
+
+This additional acceptance script starts an isolated persistent server, makes 44 actual HTTP auction purchases for four owners in two tournaments, plays two concurrent league matches and their finals with socket inputs and real-time server physics, verifies points/champions, then checks both champions after restarting the server. It takes roughly a minute or two and never injects match state or scores. CI runs it as well as the browser smoke test.

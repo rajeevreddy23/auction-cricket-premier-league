@@ -98,7 +98,7 @@ test('five live websocket sessions isolate physics inputs, enforce capacity and 
   const parallel=states[2],parallelOwner=parallel.teams[1].ownerId;
   sockets[owners.findIndex(o=>o.user.id===parallelOwner)].send(JSON.stringify({type:'input',matchId:parallel.id,sequence:0,action:{type:'bowl',targetX:.5,speed:25,spin:0}}));
   const deadline=Date.now()+6000;
-  while(Date.now()<deadline&&[first,parallel].some(s=>a.sessions.get(s.id)!.state.legalBalls!==1))await new Promise(done=>setTimeout(done,20));
+  while(Date.now()<deadline&&[first,parallel].some(s=>a.sessions.get(s.id)!.state.legalBalls!==1||!received.get(s.teams[0].ownerId)!.some(m=>m.type==='match'&&m.data.legalBalls===1)))await new Promise(done=>setTimeout(done,20));
   for(const state of [first,parallel]){
    const live=a.sessions.get(state.id)!.state;assert.equal(live.legalBalls,1);assert.equal(live.phase,'DEAD');
    assert.equal(live.events.filter(e=>e.type==='release').length,1);

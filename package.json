@@ -9,7 +9,8 @@
     "check": "tsc --noEmit",
     "build": "vite build",
     "start": "node --experimental-strip-types src/server/index.ts",
-    "test:browser": "node --experimental-strip-types scripts/browser-smoke.mjs"
+    "test:browser": "node --experimental-strip-types scripts/browser-smoke.mjs",
+    "test:online": "node --experimental-strip-types scripts/online-acceptance.ts"
   },
   "dependencies": {
     "three": "^0.180.0",

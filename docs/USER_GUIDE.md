@@ -29,3 +29,10 @@ The default identity dialog now offers Sign in and Create account. Register a un
 Each new franchise begins with ₹120 Cr in virtual currency; each player costs at most ₹20 Cr. One currency unit in storage is one lakh; bids accept crore inputs in .01 Cr steps. These are virtual funds only. Old development tournaments preserve their existing balances with a legacy label.
 
 When WebGL is unavailable the app can show a simplified vector scene. The same scene geometry is projected without GPU materials/crowds. It may be slow and is not part of a certified supported-device profile. Use a WebGL-capable device for actual performance assessment.
+
+
+### Manual fielding
+
+The bowling owner can use Control nearest (F), WASD, or the touch arrows. After collection choose Throw striker end (T) or Throw bowler end (Y). Stop movement by releasing the key or touch button. Auto field restores computer chasing. If a manual collection is abandoned, the ball returns after two seconds so the delivery can finish.
+
+Pro bowling includes front-foot release position; overstepping gives a no ball and a free hit. An illegal free-hit delivery carries the free hit forward. Misses may score byes; attempted pro shots can produce pad contact, leg byes or a simplified LBW decision. Replay now replays the animated player poses as well as the ball, and blocks match inputs during playback.
